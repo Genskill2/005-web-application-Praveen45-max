@@ -1,47 +1,141 @@
-# Introduction
 
-The repository contains a web app to manage a pet store. The following
-features are supported
+import datetime
 
-1. List of pets
-1. Sorting pets by various fields (clicking on the headers)
-1. Click on a pet id to see details.
-1. Edit the pet to be change description
-1. Edit the pet to change whether it's sold or not.
-1. Click on a tag in the details page to see only pets which have that
-   tag.
-   
-   
-# Setting up
+from flask import Blueprint
+from flask import render_template, request, redirect, url_for, jsonify
+from flask import g
 
-1. Clone repository
-1. Create a virtualenv and activate it
-1. Install dependencies using `pip install -r requirements.txt`
-1. Setup application using `python setup.py develop`
-1. `export FLASK_APP=petshop` to set the application
-1. `flask initdb` to create the initial database
-1. `flask run` to start the app.
+from . import db
+
+bp = Blueprint("pets", "pets", url_prefix="")
+
+def format_date(d):
+    if d:
+        d = datetime.datetime.strptime(d, '%Y-%m-%d')
+        v = d.strftime("%a - %b %d, %Y")
+        return v
+    else:
+        return None
+
+@bp.route("/search/<field>/<value>")
+def search(field, value):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    oby= request.args.get("order_by", "id")  
+    order = request.args.get("order", "asc")
+    if(oby=='id'):
+        if order == "asc":
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.id",[value])
+        else:
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.id desc",[value])
+    if(oby=='name'):
+        if order == "asc":
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.name",[value])
+        else:
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.name desc",[value])
+    if(oby=='bought'):
+        if order == "asc":
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.bought",[value])
+        else:
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.bought desc",[value])
+    if(oby=='sold'):
+        if order == "asc":
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.sold",[value])
+        else:
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.sold desc",[value])
+    if(oby=='species'):
+        if order == "asc":
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.species",[value])
+        else:
+            cursor.execute("select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s, tag t, tags_pets tp where p.species = s.id and p.id=tp.pet and tp.tag=t.id and t.name=? order by p.species desc",[value]) 
+    pets = cursor.fetchall()
+    return render_template('search.html', field =field,value=value, pets = pets, order="desc" if order=="asc" else "asc")
+
+@bp.route("/")
+def dashboard():
+    conn = db.get_db()
+    cursor = conn.cursor()
+    oby= request.args.get("order_by", "id") 
+    order = request.args.get("order", "asc")
+    if(oby=='id'):
+        if order == "asc":
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id")
+        else:
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id desc")
+    if(oby=='name'):
+        if order == "asc":
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.name")
+        else:
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.name desc")
+    if(oby=='bought'):
+        if order == "asc":
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.bought")
+        else:
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.bought desc")
+    if(oby=='sold'):
+        if order == "asc":
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.sold")
+        else:
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.sold desc")
+    if(oby=='species'):
+        if order == "asc":
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.species")
+        else:
+            cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.species desc")
+    
+    pets = cursor.fetchall()
+    return render_template('index.html', pets = pets, order="desc" if order=="asc" else "asc")
 
 
-You can also, instead of running the app, run the tests using `py.test`
+@bp.route("/<pid>")
+def pet_info(pid): 
+    conn = db.get_db()
+    cursor = conn.cursor()
+    cursor.execute("select p.name, p.bought, p.sold, p.description, s.name from pet p, animal s where p.species = s.id and p.id = ?", [pid])
+    pet = cursor.fetchone()
+    cursor.execute("select t.name from tags_pets tp, tag t where tp.pet = ? and tp.tag = t.id", [pid])
+    tags = (x[0] for x in cursor.fetchall())
+    name, bought, sold, description, species = pet
+    data = dict(id = pid,
+                name = name,
+                bought = format_date(bought),
+                sold = format_date(sold),
+                description = description, #TODO Not being displayed
+                species = species,
+                tags = tags)
+    return render_template("petdetail.html", **data)
 
-# Tasks
+@bp.route("/<pid>/edit", methods=["GET", "POST"])
+def edit(pid):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    if request.method == "GET":
+        cursor.execute("select p.name, p.bought, p.sold, p.description, s.name from pet p, animal s where p.species = s.id and p.id = ?", [pid])
+        pet = cursor.fetchone()
+        cursor.execute("select t.name from tags_pets tp, tag t where tp.pet = ? and tp.tag = t.id", [pid])
+        tags = (x[0] for x in cursor.fetchall())
+        name, bought, sold, description, species = pet
+        data = dict(id = pid,
+                    name = name,
+                    bought = format_date(bought),
+                    sold = format_date(sold),
+                    description = description,
+                    species = species,
+                    tags = tags)
+        return render_template("editpet.html", **data)
+    elif request.method == "POST":
+        description = request.form.get('description')
+        sold = request.form.get("sold")
+        cursor.execute("update pet set description=? where id =?",[description,pid])
+        if(sold=='1'):
+                     
+            sold_time = datetime.datetime.now().strftime("%Y-%m-%d")
+            
+            cursor.execute("update pet set sold=? where id =?",[sold_time,pid])
+            
+        conn.commit()
+        return redirect(url_for("pets.pet_info", pid=pid), 302)
+        
+    
 
-The app is currently incomplete. These are marked in the source code
-using `# TODO`. These tasks have to be completed for the app to work.
-
-1. Enable sorting by all columns. Right now, only the id sorting works
-   and all the other columns also sort by id.
-1. Description is not displayed in the pet details page. This should
-   be inside a `<p>` tag with `class` `description`. So something like
-   this
-
-         <p class="description"> 
-             Description here
-          </p>
-
-1. It's not possible to mark a pet as sold now. This needs to be
-   fixed.
-1. Clicking on a tag will show you a view similar to the homepage but
-   with only the pets with that tag. This is not implemented now. 
 
